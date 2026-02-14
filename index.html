@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Règlement 672-2017 - Outil prévention incendie</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #18212e;
+      --muted: #5a6572;
+      --accent: #1b65d6;
+      --border: #d7dfeb;
+      --ok: #1a7f37;
+      --bad: #b42318;
+    }
+    body.dark {
+      --bg: #0f1722;
+      --card: #192231;
+      --text: #f0f5ff;
+      --muted: #b3c0d4;
+      --accent: #70a5ff;
+      --border: #334155;
+      --ok: #47d16c;
+      --bad: #ff6f6f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .tabs { display: flex; gap: .5rem; flex-wrap: wrap; }
+    button, select, input, textarea {
+      font: inherit;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      padding: .55rem .8rem;
+      background: var(--card);
+      color: var(--text);
+    }
+    button { cursor: pointer; }
+    .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .container {
+      margin: 1rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      height: calc(100vh - 110px);
+      overflow: auto;
+      padding: 1rem;
+    }
+    .module { display: none; }
+    .module.active { display: block; }
+    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+    th, td { border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; padding: .6rem; }
+    th { position: sticky; top: 0; background: var(--card); z-index: 5; }
+    .small { color: var(--muted); font-size: .9rem; }
+    .grid { display: grid; gap: 1rem; grid-template-columns: 1.3fr .7fr; }
+    .card { border: 1px solid var(--border); border-radius: 10px; padding: 1rem; background: var(--card); }
+    .choices { display: grid; gap: .5rem; margin-top: .8rem; }
+    .choice-btn { text-align: left; }
+    .score { display: grid; gap: .5rem; }
+    .score .v { font-size: 1.3rem; font-weight: 700; }
+    .feedback.ok { color: var(--ok); }
+    .feedback.bad { color: var(--bad); }
+    .toolbar { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: .8rem; align-items: center; }
+    textarea { width: 100%; min-height: 180px; }
+    dialog { border: 1px solid var(--border); border-radius: 10px; padding: 1rem; max-width: 520px; }
+    dialog::backdrop { background: rgba(0,0,0,.45); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="tabs">
+      <button class="tab-btn active" data-module="m1">Module 1 - Articles 1 à 27</button>
+      <button class="tab-btn" data-module="m2">Module 2 - Dispositions pénales</button>
+      <button class="tab-btn" data-module="m3">Module 3 - Simulateur</button>
+      <button class="tab-btn" data-module="m4">Module 4 - ADMIN</button>
+    </div>
+    <button id="toggleTheme">🌙/☀️ Thème</button>
+  </header>
+
+  <main class="container">
+    <section id="m1" class="module active">
+      <div class="toolbar"><input id="searchM1" placeholder="Rechercher article/texte..." /></div>
+      <div class="table-wrap"><table id="tableM1"></table></div>
+    </section>
+
+    <section id="m2" class="module">
+      <div class="toolbar"><input id="searchM2" placeholder="Rechercher article/texte..." /></div>
+      <div class="table-wrap"><table id="tableM2"></table></div>
+    </section>
+
+    <section id="m3" class="module">
+      <div class="toolbar">
+        <input id="participantName" placeholder="Nom du participant" />
+        <select id="scenarioCount"></select>
+        <button id="startSim">Démarrer le simulateur</button>
+        <button id="resetSim">Reset participation</button>
+      </div>
+      <div class="grid">
+        <div class="card" id="scenarioArea"><p>Entrez un nom et démarrez.</p></div>
+        <aside class="card score">
+          <div>Participant: <span id="scoreName">-</span></div>
+          <div>Question: <span id="scoreIndex">0</span>/<span id="scoreTotal">0</span></div>
+          <div class="v">Bonnes réponses: <span id="good">0</span></div>
+          <div class="v">Mauvaises réponses: <span id="bad">0</span></div>
+          <div class="v">Note: <span id="note">0</span>/100</div>
+          <div id="revision" class="small">Conseils de révision affichés ici.</div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="m4" class="module">
+      <div class="card">
+        <h3>Administration du contenu</h3>
+        <p class="small">Modifier les données du règlement/scénarios puis enregistrer dans le navigateur.</p>
+        <div class="toolbar">
+          <button id="saveAdmin">Enregistrer</button>
+          <button id="downloadAdmin">Télécharger JSON</button>
+          <button id="resetAdmin">Restaurer défaut</button>
+          <input type="file" id="uploadAdmin" accept="application/json" />
+        </div>
+        <label>Données modules 1 et 2 (JSON)</label>
+        <textarea id="adminRegs"></textarea>
+        <label>Données scénarios (JSON)</label>
+        <textarea id="adminScenarios"></textarea>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="confirmDialog">
+    <h3>Confirmer la réponse</h3>
+    <p id="confirmText"></p>
+    <div class="toolbar">
+      <button id="confirmAccept">Accepter</button>
+      <button id="confirmModify">Modifier</button>
+    </div>
+  </dialog>
+
+<script>
+const rawModule1 = `ARTICLE 1 – DISPOSITIONS GÉNÉRALES
+1.1 Domaine d’application
+Le présent règlement a pour objectif d’établir les normes minimales pour prévenir les pertes en vies humaines et en dommages matériels causés par un incendie et règlemente diverses activités présentant un risque d’incendie.
+1.2 Champs d’application
+Les dispositions du présent règlement s’appliquent à l’ensemble du territoire sous la juridiction de la Ville de Saint-Georges.
+1.3 Responsabilité de l’application
+Le directeur du Service de sécurité incendie est responsable de l’application et de l’administration du présent règlement.
+1.4 Pouvoirs
+Le directeur, les préventionnistes et les représentants désignés du Service de sécurité incendie sont autorisés à visiter et à examiner tout bâtiment afin de s’assurer du respect du règlement. Le propriétaire, locataire ou occupant doit collaborer. Visite entre 7 h et 21 h sauf urgence.
+1.5 Entrave
+Nul ne peut gêner, opposer, tenter de s’opposer ou retarder une inspection.
+1.6 Urgence
+Le directeur et ses représentants peuvent prendre les mesures nécessaires en situation d’urgence.
+ARTICLE 2 – DISPOSITIONS INTERPRÉTATIVES
+2.1 Définitions
+Accès à l’issue, alarme d’incendie, avertisseur de fumée, avertisseur de monoxyde de carbone, conduit de fumée, CSA, détecteur de fumée, directeur, E.P.A., établissement de soins, établissement de réunion, feu à ciel ouvert, feux d’artifice, feu de joie, gîte touristique, habitation, issue, logement, maison de chambre, représentant désigné, RTF, RI, ULC, voie d’accès.
+ARTICLE 3 – AVERTISSEUR DE FUMÉE
+3.1 Installation obligatoire
+Des avertisseurs homologués doivent être installés dans chaque logement à chaque étage et dans chaque pièce où l’on dort.
+3.2 Remplacement
+Remplacement à 10 ans de fabrication ou si date absente, peinture ou défectuosité.
+3.3 Obligations du propriétaire
+Le propriétaire fournit les directives et installe des piles neuves avant prise de possession.
+3.4 Obligations du locataire ou de l’occupant
+Le locataire assure le bon fonctionnement et avise le propriétaire sans délai en cas de défectuosité.
+3.5 Emplacement
+Installer entre les aires de sommeil et le reste du logement, ou dans les corridors desservants.
+3.6 Résidence comportant une ressource intermédiaire (RI) ou de type familial (RTF)
+Pour RI/RTF et autres résidences de 9 personnes et moins offrant hébergement et soutien, avertisseurs photoélectriques reliés en permanence et interconnectés.
+3.7 Conformité
+La conformité s’évalue selon les normes en vigueur lors de la construction.
+ARTICLE 4 – AVERTISSEUR DE MONOXYDE DE CARBONE
+4.1 Installation obligatoire
+Installation obligatoire si appareil à combustion ou partie de bâtiment contiguë à un garage.
+a) Habitation desservie par appareil à combustion.
+b) Bâtiment contigu à un garage.
+4.2 Altération
+Interdiction de peindre ou altérer un avertisseur.
+4.3 Obligations du propriétaire
+Remplacer sans délai si défectueux ou à date prévue par le fabricant.
+4.4 Inspection, essai et entretien
+Inspection et entretien selon directives du fabricant.
+ARTICLE 5 – SYSTÈME D’ALARME INCENDIE
+5.1 Application
+Applicable à tout système d’alarme incendie.
+5.2 Obligation d’inscription
+Formulaire obligatoire avec identité, adresses, contacts d’urgence, date de mise en opération et compagnie gestionnaire.
+a) Informations utilisateur
+b) Informations propriétaire
+c) Adresse des lieux
+d) Représentants morale
+e) 3 personnes autorisées
+f) Date de mise en service
+g) Entreprise opératrice
+5.3 Interruption
+Le directeur, représentants et agents de la paix peuvent pénétrer les lieux protégés si alarme en fonction et personne sur place.
+5.4 Déclenchement d’un système
+Un déplacement injustifié constitue une infraction.
+5.5 Inspection, essai et entretien
+Inspection régulière. Une inspection peut être exigée après fausse alarme.
+ARTICLE 6 – EXTINCTEUR PORTATIF
+6.1 Application
+Tout bâtiment doit avoir au moins un extincteur ABC fonctionnel de 5 lb minimum.
+6.2 Inspection, essai et entretien
+Conformité NFPA-10.
+ARTICLE 7 – VOIE D’ACCÈS ET VOIE PRIORITAIRE
+7.1 Exigences
+Voie prioritaire requise près des bâtiments de plus de 600 m² si parcours excède 90 m.
+ARTICLE 8 – BORNES D’INCENDIE
+8.1 Accessibilité
+Bornes accessibles en tout temps, dégagement 1 m et jusqu’à la voie publique.
+8.2 Interdiction
+Interdiction d’encombrer, altérer, masquer, utiliser sans autorisation ou installer borne décorative privée.
+a) Dépôt de matière interdit
+b) Végétation interdite
+c) Altération interdite
+d) Obstacle interdit
+e) Usage non autorisé interdit
+f) Borne décorative privée interdite
+8.3 Borne privée d’incendie
+8.3.1 Exigence
+Borne privée exigée pour bâtiments >600 m² à plus de 90 m d’une borne.
+8.3.2 Installation
+Installation aux frais du propriétaire avec approbation des travaux publics.
+8.3.3 Identification
+Borne privée identifiée par enseigne approuvée.
+8.3.4 Inspection
+Le propriétaire assure le bon fonctionnement.
+ARTICLE 9 – RACCORDS-POMPIER ET BORNE MURALE
+9.1 Accès
+Dégagement de 1,5 m.
+9.2 Distance
+Parcours raccord-borne max 45 m et dégagé.
+9.3 Identification
+Chaque raccord identifié selon sa fonction.
+9.4 Protection
+Filetage protégé par bouchon adéquat.
+ARTICLE 10 – CHEMINÉES, TUYAUX ET CONDUITS
+10.1 Inspection, ramonage, nettoyage
+Inspection/ramonage/nettoyage annuel minimum pour installation à combustion solide.
+10.2 Incendie de cheminée
+2e incendie en 12 mois = constat d’infraction.
+ARTICLE 11 – DISPOSITION DES CENDRES
+11.1 Dispositif
+Cendres dans récipient incombustible avec couvercle métallique.
+11.2 Emplacement
+Récipients à au moins 1 m des matières combustibles.
+ARTICLE 12 – APPAREILS DE CHAUFFAGE À COMBUSTIBLES SOLIDES
+12.1 Installation
+Installation selon fabricant et plaque d’homologation obligatoire.
+12.2 Interdiction
+Chauffage extérieur à combustible solide prohibé en périmètre urbain et zones visées.
+12.3 Conditions d’utilisation
+a) Un seul appareil
+b) Pas en cour avant
+c) 5 m de ligne de lot
+d) 100 m d’habitation voisine
+e) Cheminée min 6 m
+f) Espace libre de 5 m
+g) Pas incinérateur
+h) Interdiction de matières nuisibles
+i) Appareil homologué EPA/CSA
+12.4 Acceptation et approbation
+Nouvelle installation extérieure approuvée préalablement.
+ARTICLE 13 – FOYER EXTÉRIEUR
+13.1 Installation
+Interdit à moins de 3 m d’un bâtiment. Pare-étincelles requis.
+13.2 Interdiction
+Interdiction d’accélérant pétrolier, de brûlage de déchets et de brûlage hors foyer extérieur.
+ARTICLE 14 – FEUX À CIEL OUVERT
+14.1 Autorisation et permis
+Feu à ciel ouvert autorisé en milieu non urbain avec permis préalable.
+14.2 Conditions et infraction
+a) Visite préalable possible
+b) Responsable 18+
+c) Distance min 30 m
+d) Dimensions contrôlées
+e) Moyens d’extinction
+f) Extinction complète
+14.3 Conditions météorologiques
+Permis révoqué si indice SOPFEU élevé.
+14.4 Validité du permis
+Valide pour la période indiquée.
+14.5 Incessibilité du permis
+Permis valide pour lieu/personne désignés seulement.
+ARTICLE 15 – FEU DE JOIE
+15.1 Conditions et permis
+Feux de joie interdits, sauf autorisation spéciale.
+ARTICLE 16 – FEUX D’ARTIFICE
+16.1 Feux d’artifice à l’usage du consommateur
+Permis requis et conditions de sécurité (terrain libre, 30 m bâtiments, 200 m produits dangereux).
+16.2 Feux d’artifice à grand déploiement
+a) Certificat d’artificier
+b) Engagement écrit
+c) Assurance 2 000 000 $
+d) Adresse entreposage
+e) Plan des lieux
+f) Date et heure
+g) Mesures de sécurité additionnelles
+16.3 Validité de la demande d’autorisation
+Permis incessible, lié à personne, période et lieu.
+ARTICLE 17 – GAZ NATUREL ET GAZ PROPANE
+17.1 Déneigement et dégagement des conduites
+Dégagement de 1,5 m et protection contre chute de glace/neige.
+17.2 Réservoir
+Réservoir 272 lb+ et accès déneigés, protection contre collision.
+17.3 Entreposage
+Bouteilles à l’extérieur, ventilées, sécurisées, loin des sources d’allumage.
+17.4 Issues
+Interdit à moins de 3 m d’une issue.
+ARTICLE 18 – APPAREILLAGE ÉLECTRIQUE
+18.1 Accessibilité
+1 m libre autour de l’entrée électrique, toujours accessible.
+18.2 Entreposage interdit
+Interdiction de stockage dans chambres d’appareillage.
+ARTICLE 19 – IMMEUBLES DANGEREUX
+19.1 Généralité
+Interdit de laisser terrain/bâtisse délabré présentant un risque incendie.
+19.2 Bâtiment inoccupé
+Barricader sans délai si danger.
+19.3 Bâtiment incendié ou endommagé
+Barricader dans les 48 h et maintenir.
+19.4 Mesures de sécurité
+Consolider ou démolir partie dangereuse dans les 48 h.
+19.5 Nettoyage
+Nettoyer/remblayer dans les 45 jours.
+ARTICLE 20 – RISQUES D’INCENDIE
+20.1 Accumulation
+Interdiction d’accumuler matières combustibles à risque.
+20.2 Terrain vacant
+Terrain libre de matières pouvant propager le feu.
+20.3 Feu dans un bâtiment
+Feu uniquement dans installation approuvée.
+20.4 Produits de brûlage
+Émission d’étincelles dangereuses interdite.
+20.5 Brûlage interdit
+Interdiction de brûler matériaux de construction/hydrocarbures/plastiques.
+ARTICLE 21 – ISSUES ET ACCÈS AUX ISSUES
+21.1 Mesures à respecter
+Issues, escaliers et passages toujours fonctionnels, dégagés, entretenus l’hiver.
+21.2 Obligations particulières pour les établissements de réunion
+21.2.1 Portes d’issue
+Portes repérables, ouverture dans le sens de l’issue, non verrouillées de façon bloquante.
+21.2.2 Signalisation d’issue
+a) Visible
+b) Mot SORTIE/EXIT ou pictogramme
+c) Éclairée continuellement
+21.2.3 Éclairage de sécurité
+Éclairage de sécurité conforme et fonctionnel.
+21.2.4 Inspection de l’éclairage de sécurité
+Inspection à intervalle maximal de 12 mois.
+21.2.5 Matériel décoratif
+Foin/paille/copeaux décoratifs combustibles interdits.
+ARTICLE 22 – GICLEURS
+22.1 Inspection, essai et entretien
+Inspection et entretien selon NFPA-25 avec preuve sur demande.
+ARTICLE 23 – INSTALLATION D’ÉQUIPEMENTS DE SÉCURITÉ
+23.1 Approbation
+Rapport de conformité exigé avant occupation selon travaux/usages.
+ARTICLE 24 – MESURES D’URGENCE
+24.1 Procédure
+Procédure d’urgence obligatoire pour bâtiments à risque élevé/très élevé, révision annuelle.
+ARTICLE 25 – MAISON DE CHAMBRES ET GÎTE TOURISTIQUE
+25.1 Issue
+Chambre en location: fenêtre évacuation ou porte directe extérieure.
+ARTICLE 26 – MARCHANDISES DANGEREUSES
+26.1 Identification
+Plaque SIMDUT obligatoire si entreposage >200 litres.
+ARTICLE 27 – FUMÉE
+27.1 Interdiction
+Interdit de maintenir un feu dont la fumée incommode les voisins.`;
+
+const rawModule2 = `ARTICLE 28 – DISPOSITIONS PÉNALES
+28.1 Constats d’infraction
+Le directeur, préventionnistes, représentants désignés et procureurs sont autorisés à délivrer des constats.
+28.2 Amendes
+28.2.1 Infraction générale
+Amende de 100 $ à 1 000 $ plus frais.
+28.2.2 Articles spécifiques (5.2,8.1,8.2,8.3.3,9.1,9.3,9.4,11,13,14.2,16.1,18)
+Amende de 50 $ à 500 $ plus frais.
+28.2.3 Articles spécifiques (3.6,16.2,17.1,17.2,17.4,21.1,21.2.1,21.2.3,22.1,25.1)
+Amende de 200 $ à 2 000 $ plus frais.
+28.2.4 Articles spécifiques (7,8.3.1,9.2,12.2,12.3,19,23.1)
+Amende de 500 $ à 2 000 $ plus frais.
+28.2.5 Système d’alarme
+Fausse alarme répétée: 100 $/appel logement unique; autres bâtiments 200 $, 400 $, puis 1 000 $.
+28.2.6 Infraction distincte
+Chaque jour de non-conformité constitue une infraction distincte.
+ARTICLE 29 – DISPOSITIONS TRANSITOIRES
+29.1 Avertisseur de fumée
+Délai de 12 mois pour conformité article 3.6.
+29.2 Système d’alarme
+Délai de 90 jours pour compléter formulaire 5.2.
+29.3 Raccords-pompier et borne murale
+Mesures compensatoires possibles pour bâtiments existants.
+29.4 Procédure de mesures d’urgence
+Délai d’un an pour les bâtiments visés à l’article 24.
+29.5 Appareils de chauffage à combustibles solides
+Délai de 2 ans pour conformité article 12.2.
+ARTICLE 30 – RESPONSABILITÉ
+Responsabilité des citoyens; Ville non responsable des dommages liés au non-respect.
+ARTICLE 31 – RECOURS
+Application cumulative/alternative avec autres lois et règlements.
+ARTICLE 32 – REMPLACEMENT DE RÈGLEMENT ANTÉRIEUR
+Remplace le règlement 33-2002 et modifications.
+ARTICLE 33 – MODIFICATION DE RÈGLEMENT ANTÉRIEUR
+Modifie le règlement 65-2003 sur les fausses alarmes (intrusion/incendie).
+ARTICLE 34 – ENTRÉE EN VIGUEUR
+Le règlement entre en vigueur conformément à la loi.`;
+
+const revisionMap = {
+  "3.1": "Réviser l’installation des avertisseurs de fumée par étage et pièces de sommeil.",
+  "4.1": "Réviser les cas où un avertisseur de CO est obligatoire.",
+  "8.1": "Réviser les dégagements obligatoires autour des bornes d’incendie.",
+  "12.2": "Réviser l’interdiction des appareils extérieurs à combustibles solides en zone urbaine.",
+  "14.2": "Réviser les conditions d’un permis de brûlage et les distances minimales.",
+  "16.1": "Réviser les conditions de permis pour feux d’artifice grand public.",
+  "19.3": "Réviser les obligations après sinistre: barricadage sous 48 h.",
+  "21.1": "Réviser l’obligation de maintenir les issues fonctionnelles et dégagées.",
+  "22.1": "Réviser l’entretien NFPA-25 des systèmes gicleurs.",
+  "26.1": "Réviser l’identification SIMDUT au-delà de 200 litres."
+};
+
+function summarize(text) {
+  return text.split(/\s+/).slice(0, 30).join(" ") + (text.split(/\s+/).length > 30 ? "…" : "");
+}
+
+function parseReg(text) {
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  const out = [];
+  let current = null;
+  for (const line of lines) {
+    const articleHead = line.match(/^ARTICLE\s+(\d+)\s+[–-]\s+(.+)$/i);
+    const clause = line.match(/^((?:\d+(?:\.\d+){0,2})|[a-i]\))\s+(.+)$/i);
+    if (articleHead) {
+      if (current) out.push(current);
+      current = { article: articleHead[1], articleAlineas: `ARTICLE ${articleHead[1]} - ${articleHead[2]}`, full: "" };
+    } else if (clause) {
+      if (current) out.push(current);
+      current = { article: clause[1], articleAlineas: `${clause[1]} ${clause[2]}`, full: "" };
+    } else if (current) {
+      current.full += (current.full ? " " : "") + line;
+    }
+  }
+  if (current) out.push(current);
+  return out.map(e => ({...e, summary: summarize(e.full || e.articleAlineas)}));
+}
+
+function renderTable(id, rows) {
+  const table = document.getElementById(id);
+  table.innerHTML = `<thead><tr><th>Article</th><th>Article et alinéas</th><th>Texte complet</th><th>Résumé IA (max 30 mots)</th></tr></thead>
+    <tbody>${rows.map(r => `<tr><td>${r.article}</td><td>${r.articleAlineas}</td><td>${r.full}</td><td>${r.summary}</td></tr>`).join("")}</tbody>`;
+}
+
+function baseScenarios() {
+  const anomalies = [
+    ["3.1", "Dans un duplex, aucun avertisseur n’est présent au sous-sol.", "Informer calmement le propriétaire, expliquer le risque réel puis exiger installation homologuée à chaque étage."],
+    ["4.1", "Maison avec garage contigu sans avertisseur de CO.", "Ton posé, vérifier compréhension du danger invisible et proposer échéancier d’installation immédiat."],
+    ["8.1", "Une haie bloque la borne d’incendie municipale.", "Utiliser un ton factuel et respectueux, rappeler le dégagement 1 m et l’accès jusqu’à la voie publique."],
+    ["12.2", "Fournaise extérieure à bois installée en secteur urbain.", "Éviter le jugement, expliquer la prohibition locale et orienter vers alternatives conformes."],
+    ["14.2", "Brûlage de branches à 10 m d’un garage.", "Rester ferme, expliquer distances minimales et exigence de moyens d’extinction."],
+    ["16.1", "Citoyen tire des feux d’artifice sans permis municipal.", "Parler lentement, préciser que permis et distances de sécurité sont obligatoires."],
+    ["19.3", "Bâtiment incendié non barricadé 72 h après sinistre.", "Montrer empathie post-sinistre mais insister sur sécurisation immédiate des lieux."],
+    ["21.1", "Escalier d’issue extérieur glacé et obstrué de boîtes.", "Expliquer clairement le risque à l’évacuation et demander correction immédiate."],
+    ["22.1", "Propriétaire n’a aucune preuve d’entretien du système gicleur.", "Adopter approche pédagogique: obligation d’entretien NFPA-25 et conservation des preuves."],
+    ["26.1", "Entrepôt avec 500 L de solvants sans plaque SIMDUT.", "Utiliser communication structurée: constater, expliquer, corriger, valider compréhension."],
+  ];
+  const conformes = [
+    ["AUCUNE", "Maison: avertisseurs fonctionnels à chaque étage, extincteur ABC 5 lb, issues dégagées.", "Valoriser les bonnes pratiques, encourager maintien des vérifications périodiques."],
+    ["AUCUNE", "Borne privée bien identifiée, dégagée, inspection démontrée.", "Reconnaître l’effort, conserver un ton positif et renforcer les acquis."],
+    ["AUCUNE", "Système d’alarme inscrit avec 3 contacts à jour.", "Souligner la conformité administrative et l’importance d’actualiser les contacts."],
+    ["AUCUNE", "Cheminée ramonée récemment avec preuve de service.", "Féliciter la prévention proactive et rappeler le suivi annuel."],
+    ["AUCUNE", "Local de réunion: sorties signalées et éclairage de sécurité fonctionnel.", "Adopter ton encourageant, confirmer les points forts de sécurité."],
+    ["AUCUNE", "Réservoir propane protégé contre collisions et zone déneigée.", "Remercier la collaboration, maintenir vigilance saisonnière."],
+    ["AUCUNE", "Foyer extérieur à plus de 3 m avec pare-étincelles.", "Consolider les bons réflexes avec une approche citoyenne valorisante."],
+    ["AUCUNE", "Terrain vacant sans accumulation de matières combustibles.", "Mettre en valeur l’entretien préventif et le risque réduit."],
+    ["AUCUNE", "Bâtiment industriel avec entrée électrique dégagée de 1 m.", "Reconnaître la conformité et recommander inspections internes régulières."],
+    ["AUCUNE", "Chambre en location avec fenêtre d’évacuation conforme.", "Valider le respect de l’issue et encourager affichage des consignes."],
+  ];
+  const distract = ["3.1","4.1","8.1","12.2","14.2","16.1","19.3","21.1","22.1","26.1"];
+  const mix = [...anomalies, ...conformes];
+  const scenarios = [];
+  for (let i=0;i<50;i++) {
+    const seed = mix[i % mix.length];
+    const good = seed[0];
+    const optionsBase = good === "AUCUNE"
+      ? ["AUCUNE"]
+      : [good];
+    while (optionsBase.length < 5) {
+      const cand = distract[Math.floor(Math.random()*distract.length)];
+      if (!optionsBase.includes(cand)) optionsBase.push(cand);
+    }
+    if (good === "AUCUNE") {
+      while (optionsBase.length < 5) {
+        const cand = distract[Math.floor(Math.random()*distract.length)];
+        if (!optionsBase.includes(cand)) optionsBase.push(cand);
+      }
+    }
+    scenarios.push({
+      id: i+1,
+      text: `${seed[1]} (Scénario ${i+1})`,
+      good,
+      choices: optionsBase.sort(() => Math.random() - 0.5),
+      approach: seed[2],
+      explain: good === "AUCUNE" ? "Aucune anomalie constatée; conserver les bonnes pratiques et la vigilance." : `${good}: application directe de l’exigence au contexte observé.`
+    });
+  }
+  return scenarios.sort(() => Math.random() - 0.5);
+}
+
+let data = {
+  module1: parseReg(rawModule1),
+  module2: parseReg(rawModule2),
+  scenarios: baseScenarios()
+};
+
+const fromStorage = localStorage.getItem("reg672_data");
+if (fromStorage) {
+  try { data = JSON.parse(fromStorage); } catch {}
+}
+
+renderTable("tableM1", data.module1);
+renderTable("tableM2", data.module2);
+
+const tabs = document.querySelectorAll(".tab-btn");
+const modules = document.querySelectorAll(".module");
+tabs.forEach(btn => btn.onclick = () => {
+  tabs.forEach(b => b.classList.remove("active"));
+  modules.forEach(m => m.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById(btn.dataset.module).classList.add("active");
+});
+
+document.getElementById("toggleTheme").onclick = () => document.body.classList.toggle("dark");
+
+function searchTable(inputId, sourceKey, tableId){
+  document.getElementById(inputId).addEventListener("input", e => {
+    const q = e.target.value.toLowerCase();
+    const filtered = data[sourceKey].filter(r => Object.values(r).join(" ").toLowerCase().includes(q));
+    renderTable(tableId, filtered);
+  });
+}
+searchTable("searchM1","module1","tableM1");
+searchTable("searchM2","module2","tableM2");
+
+[5,10,15,20,25,30,35,40,45,50].forEach(n => {
+  const o = document.createElement("option"); o.value=n; o.textContent=`${n} scénarios`; scenarioCount.appendChild(o);
+});
+
+let state = { started:false, idx:0, total:0, good:0, bad:0, selected:null, run:[] };
+const scenarioArea = document.getElementById("scenarioArea");
+const confirmDialog = document.getElementById("confirmDialog");
+
+function updateScore(){
+  scoreIndex.textContent = state.idx;
+  scoreTotal.textContent = state.total;
+  good.textContent = state.good;
+  bad.textContent = state.bad;
+  const note = state.total ? Math.round((state.good / state.total) * 100) : 0;
+  document.getElementById("note").textContent = note;
+  if (note >= 95) revision.textContent = "Excellent (≥95%). Maintenir ce niveau avec révision périodique des articles critiques.";
+  else {
+    const weaknesses = state.run.slice(0,state.idx).filter(x=>!x.ok).map(x=>x.good).filter(x=>x!=="AUCUNE");
+    const target = weaknesses[weaknesses.length-1] || "3.1";
+    revision.textContent = `Objectif 95%: ${revisionMap[target] || "Réviser les articles associés aux erreurs récentes."}`;
+  }
+}
+
+function showQuestion(){
+  if (state.idx >= state.total) {
+    const note = Math.round((state.good / state.total) * 100);
+    scenarioArea.innerHTML = `<h3>Simulation terminée</h3><p>Note finale: <strong>${note}/100</strong>.</p><p>${note>=95?"Très bon niveau.":"Réviser les articles des erreurs et relancer une simulation."}</p>`;
+    updateScore();
+    return;
+  }
+  const s = state.run[state.idx];
+  scenarioArea.innerHTML = `<h3>Scénario ${state.idx+1}</h3><p>${s.text}</p><div class="small"><strong>Approche citoyenne recommandée:</strong> ${s.approach}</div><div class="choices">${s.choices.map((c,i)=>`<button class='choice-btn' data-c='${c}'>Choix ${i+1}: ${c}</button>`).join('')}</div><div id='fb' class='feedback'></div>`;
+  scenarioArea.querySelectorAll(".choice-btn").forEach(b => b.onclick = () => {
+    state.selected = b.dataset.c;
+    confirmText.textContent = `Confirmez votre réponse: ${state.selected}`;
+    confirmDialog.showModal();
+  });
+}
+
+startSim.onclick = () => {
+  const name = participantName.value.trim();
+  if (!name) return alert("Veuillez entrer le nom du participant.");
+  state = { started:true, idx:0, total:Number(scenarioCount.value||5), good:0, bad:0, selected:null, run:[...data.scenarios].sort(()=>Math.random()-0.5).slice(0, Number(scenarioCount.value||5)).map(s=>({...s, choices:[...s.choices].sort(()=>Math.random()-0.5)} )};
+  scoreName.textContent = name;
+  updateScore();
+  showQuestion();
+};
+
+confirmAccept.onclick = () => {
+  const s = state.run[state.idx];
+  const ok = state.selected === s.good;
+  if (ok) state.good++; else state.bad++;
+  state.run[state.idx].ok = ok;
+  const fb = document.getElementById("fb");
+  if (fb) fb.innerHTML = ok
+    ? `<p class='feedback ok'>✅ Bonne réponse.</p>`
+    : `<p class='feedback bad'>❌ Mauvaise réponse. Bon article: <strong>${s.good}</strong>. ${summarize(s.explain)}</p>`;
+  confirmDialog.close();
+  setTimeout(()=>{ state.idx++; updateScore(); showQuestion(); }, 850);
+};
+confirmModify.onclick = () => confirmDialog.close();
+
+resetSim.onclick = () => {
+  state = { started:false, idx:0, total:0, good:0, bad:0, selected:null, run:[] };
+  scoreName.textContent = "-";
+  participantName.value = "";
+  scenarioArea.innerHTML = "<p>Participation effacée.</p>";
+  updateScore();
+};
+
+function refreshAdmin() {
+  adminRegs.value = JSON.stringify({module1:data.module1,module2:data.module2}, null, 2);
+  adminScenarios.value = JSON.stringify(data.scenarios, null, 2);
+}
+refreshAdmin();
+
+saveAdmin.onclick = () => {
+  try {
+    const regs = JSON.parse(adminRegs.value);
+    const sc = JSON.parse(adminScenarios.value);
+    data.module1 = regs.module1;
+    data.module2 = regs.module2;
+    data.scenarios = sc;
+    localStorage.setItem("reg672_data", JSON.stringify(data));
+    renderTable("tableM1", data.module1);
+    renderTable("tableM2", data.module2);
+    alert("Données sauvegardées.");
+  } catch (e) { alert("JSON invalide: " + e.message); }
+};
+
+downloadAdmin.onclick = () => {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "reglement-672-2017-data.json";
+  a.click();
+};
+
+resetAdmin.onclick = () => {
+  localStorage.removeItem("reg672_data");
+  data = {module1:parseReg(rawModule1), module2:parseReg(rawModule2), scenarios:baseScenarios()};
+  renderTable("tableM1", data.module1);
+  renderTable("tableM2", data.module2);
+  refreshAdmin();
+  alert("Données restaurées.");
+};
+
+uploadAdmin.onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      data = JSON.parse(r.result);
+      localStorage.setItem("reg672_data", JSON.stringify(data));
+      renderTable("tableM1", data.module1);
+      renderTable("tableM2", data.module2);
+      refreshAdmin();
+      alert("Import réussi.");
+    } catch { alert("Fichier invalide."); }
+  };
+  r.readAsText(f);
+};
+</script>
+</body>
+</html>
